@@ -50,3 +50,4 @@ defaultuser: # on database creation, gotify creates an admin user
 passstrength: 10 # the bcrypt password strength (higher = better but also slower)
 uploadedimagesdir: data/images # the directory for storing uploaded images
 pluginsdir: data/plugins # the directory where plugin resides
+registration: false # enable registrations

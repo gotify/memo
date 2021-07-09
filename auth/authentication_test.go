@@ -80,12 +80,13 @@ func (s *AuthenticationSuite) TestQueryToken() {
 	s.assertQueryRequest("token", "clienttoken_admin", s.auth.RequireAdmin, 200)
 }
 
-func (s *AuthenticationSuite) assertQueryRequest(key, value string, f fMiddleware, code int) {
+func (s *AuthenticationSuite) assertQueryRequest(key, value string, f fMiddleware, code int) (ctx *gin.Context) {
 	recorder := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(recorder)
+	ctx, _ = gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest("GET", fmt.Sprintf("/?%s=%s", key, value), nil)
 	f()(ctx)
 	assert.Equal(s.T(), code, recorder.Code)
+	return
 }
 
 func (s *AuthenticationSuite) TestNothingProvided() {
@@ -160,13 +161,42 @@ func (s *AuthenticationSuite) TestBasicAuth() {
 	s.assertHeaderRequest("Authorization", "Basic bm90ZXhpc3Rpbmc6cHc=", s.auth.RequireAdmin, 401)
 }
 
-func (s *AuthenticationSuite) assertHeaderRequest(key, value string, f fMiddleware, code int) {
+func (s *AuthenticationSuite) TestOptionalAuth() {
+	// various invalid users
+	ctx := s.assertQueryRequest("token", "ergerogerg", s.auth.Optional, 200)
+	assert.Nil(s.T(), TryGetUserID(ctx))
+	ctx = s.assertHeaderRequest("X-Gotify-Key", "ergerogerg", s.auth.Optional, 200)
+	assert.Nil(s.T(), TryGetUserID(ctx))
+	ctx = s.assertHeaderRequest("Authorization", "Basic bm90ZXhpc3Rpbmc6cHc=", s.auth.Optional, 200)
+	assert.Nil(s.T(), TryGetUserID(ctx))
+	ctx = s.assertHeaderRequest("Authorization", "Basic YWRtaW46cHd4", s.auth.Optional, 200)
+	assert.Nil(s.T(), TryGetUserID(ctx))
+	ctx = s.assertQueryRequest("tokenx", "clienttoken", s.auth.Optional, 200)
+	assert.Nil(s.T(), TryGetUserID(ctx))
+	ctx = s.assertQueryRequest("token", "apptoken_admin", s.auth.Optional, 200)
+	assert.Nil(s.T(), TryGetUserID(ctx))
+
+	// user existing:pw
+	ctx = s.assertHeaderRequest("Authorization", "Basic ZXhpc3Rpbmc6cHc=", s.auth.Optional, 200)
+	assert.Equal(s.T(), uint(1), *TryGetUserID(ctx))
+	ctx = s.assertQueryRequest("token", "clienttoken", s.auth.Optional, 200)
+	assert.Equal(s.T(), uint(1), *TryGetUserID(ctx))
+
+	// user admin:pw
+	ctx = s.assertHeaderRequest("Authorization", "Basic YWRtaW46cHc=", s.auth.Optional, 200)
+	assert.Equal(s.T(), uint(2), *TryGetUserID(ctx))
+	ctx = s.assertQueryRequest("token", "clienttoken_admin", s.auth.Optional, 200)
+	assert.Equal(s.T(), uint(2), *TryGetUserID(ctx))
+}
+
+func (s *AuthenticationSuite) assertHeaderRequest(key, value string, f fMiddleware, code int) (ctx *gin.Context) {
 	recorder := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(recorder)
+	ctx, _ = gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest("GET", "/", nil)
 	ctx.Request.Header.Set(key, value)
 	f()(ctx)
 	assert.Equal(s.T(), code, recorder.Code)
+	return
 }
 
 type fMiddleware func() gin.HandlerFunc

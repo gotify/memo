@@ -14,16 +14,25 @@ func RegisterAuthentication(ctx *gin.Context, user *model.User, userID uint, tok
 
 // GetUserID returns the user id which was previously registered by RegisterAuthentication.
 func GetUserID(ctx *gin.Context) uint {
+	id := TryGetUserID(ctx)
+	if id == nil {
+		panic("token and user may not be null")
+	}
+	return *id
+}
+
+// TryGetUserID returns the user id or nil if one is not set.
+func TryGetUserID(ctx *gin.Context) *uint {
 	user := ctx.MustGet("user").(*model.User)
 	if user == nil {
 		userID := ctx.MustGet("userid").(uint)
 		if userID == 0 {
-			panic("token and user may not be null")
+			return nil
 		}
-		return userID
+		return &userID
 	}
 
-	return user.ID
+	return &user.ID
 }
 
 // GetTokenID returns the tokenID.

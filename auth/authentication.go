@@ -133,3 +133,29 @@ func (a *Auth) requireToken(auth authenticate) gin.HandlerFunc {
 		ctx.AbortWithError(401, errors.New("you need to provide a valid access token or user credentials to access this api"))
 	}
 }
+
+func (a *Auth) Optional() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		token := a.tokenFromQueryOrHeader(ctx)
+		user, err := a.userFromBasicAuth(ctx)
+		if err != nil {
+			RegisterAuthentication(ctx, nil, 0, "")
+			ctx.Next()
+			return
+		}
+
+		if user != nil {
+			RegisterAuthentication(ctx, user, user.ID, token)
+			ctx.Next()
+			return
+		} else if token != "" {
+			if tokenClient, err := a.DB.GetClientByToken(token); err == nil && tokenClient != nil {
+				RegisterAuthentication(ctx, user, tokenClient.UserID, token)
+				ctx.Next()
+				return
+			}
+		}
+		RegisterAuthentication(ctx, nil, 0, "")
+		ctx.Next()
+	}
+}

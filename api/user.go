@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotify/server/v2/auth"
@@ -59,6 +60,7 @@ type UserAPI struct {
 	DB                 UserDatabase
 	PasswordStrength   int
 	UserChangeNotifier *UserChangeNotifier
+	EnableRegistration bool
 }
 
 // GetUsers returns all the users
@@ -126,7 +128,9 @@ func (a *UserAPI) GetCurrentUser(ctx *gin.Context) {
 	ctx.JSON(200, toExternalUser(user))
 }
 
-// CreateUser creates a user
+// CreateUser creates a user.
+// Granting admin to the new user depends on the admin state of the current user.
+// Creating a new user by a non-admin user also checks the registration configuration parameter.
 // swagger:operation POST /user user createUser
 //
 // Create a user.
@@ -167,6 +171,27 @@ func (a *UserAPI) CreateUser(ctx *gin.Context) {
 		if success := successOrAbort(ctx, 500, err); !success {
 			return
 		}
+
+		requestByAdmin := false
+		uid := auth.TryGetUserID(ctx)
+		if uid != nil {
+			requestByUser, err := a.DB.GetUserByID(*uid)
+			if err == nil && requestByUser != nil {
+				requestByAdmin = requestByUser.Admin // logged in as valid user
+			}
+		}
+
+		if !requestByAdmin { // if the request is not from an admin
+			if !a.EnableRegistration { // if not admin and no anonymous registration
+				ctx.AbortWithError(http.StatusForbidden, errors.New("you are not allowed to access this api"))
+				return
+			}
+			if internal.Admin { // not admin and wants to create a new user with admin
+				ctx.AbortWithError(http.StatusUnauthorized, errors.New("you are not permitted to register an admin user"))
+				return
+			}
+		}
+
 		if existingUser == nil {
 			if success := successOrAbort(ctx, 500, a.DB.CreateUser(internal)); !success {
 				return

@@ -7,18 +7,25 @@ import DefaultPage from '../common/DefaultPage';
 import {observable} from 'mobx';
 import {observer} from 'mobx-react';
 import {inject, Stores} from '../inject';
+import RegistrationDialog from './Register';
+
+type Props = Stores<'currentUser'> & {
+    showRegister: boolean;
+};
 
 @observer
-class Login extends Component<Stores<'currentUser'>> {
+class Login extends Component<Props> {
     @observable
     private username = '';
     @observable
     private password = '';
+    @observable
+    private registerDialog = false;
 
     public render() {
-        const {username, password} = this;
+        const {username, password, registerDialog} = this;
         return (
-            <DefaultPage title="Login" maxWidth={250}>
+            <DefaultPage title="Login" rightControl={this.registerButton()} maxWidth={250}>
                 <Grid item xs={12} style={{textAlign: 'center'}}>
                     <Container>
                         <form onSubmit={this.preventDefault} id="login-form">
@@ -52,6 +59,12 @@ class Login extends Component<Stores<'currentUser'>> {
                         </form>
                     </Container>
                 </Grid>
+                {registerDialog && (
+                    <RegistrationDialog
+                        fClose={() => (this.registerDialog = false)}
+                        fOnSubmit={this.props.currentUser.register}
+                    />
+                )}
             </DefaultPage>
         );
     }
@@ -59,6 +72,20 @@ class Login extends Component<Stores<'currentUser'>> {
     private login = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         this.props.currentUser.login(this.username, this.password);
+    };
+
+    private registerButton = () => {
+        if (this.props.showRegister)
+            return (
+                <Button
+                    id="register"
+                    variant="contained"
+                    color="primary"
+                    onClick={() => (this.registerDialog = true)}>
+                    Register
+                </Button>
+            );
+        else return null;
     };
 
     private preventDefault = (e: FormEvent<HTMLFormElement>) => e.preventDefault();
