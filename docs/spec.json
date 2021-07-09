@@ -1503,69 +1503,6 @@
         }
       }
     },
-    "/registration": {
-      "post": {
-        "security": [
-          {
-            "clientTokenHeader": []
-          },
-          {
-            "clientTokenQuery": []
-          },
-          {
-            "basicAuth": []
-          }
-        ],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "user"
-        ],
-        "summary": "Create a user.",
-        "operationId": "register",
-        "parameters": [
-          {
-            "description": "the user to add",
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/UserWithPass"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Ok",
-            "schema": {
-              "$ref": "#/definitions/User"
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
-          }
-        }
-      }
-    },
     "/stream": {
       "get": {
         "security": [

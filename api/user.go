@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotify/server/v2/auth"
@@ -59,6 +60,7 @@ type UserAPI struct {
 	DB                 UserDatabase
 	PasswordStrength   int
 	UserChangeNotifier *UserChangeNotifier
+	EnableRegistration bool
 }
 
 // GetUsers returns all the users
@@ -126,7 +128,9 @@ func (a *UserAPI) GetCurrentUser(ctx *gin.Context) {
 	ctx.JSON(200, toExternalUser(user))
 }
 
-// CreateUser creates a user
+// CreateUser creates a user.
+// Granting admin to the new user depends on the admin state of the current user.
+// Creating a new user by a non-admin user also checks the registration configuration parameter.
 // swagger:operation POST /user user createUser
 //
 // Create a user.
@@ -167,6 +171,27 @@ func (a *UserAPI) CreateUser(ctx *gin.Context) {
 		if success := successOrAbort(ctx, 500, err); !success {
 			return
 		}
+
+		requestByAdmin := false
+		uid := auth.TryGetUserID(ctx)
+		if uid != nil {
+			requestByUser, err := a.DB.GetUserByID(*uid)
+			if err == nil && requestByUser != nil {
+				requestByAdmin = requestByUser.Admin // logged in as valid user
+			}
+		}
+
+		if !requestByAdmin { // if the request is not from an admin
+			if !a.EnableRegistration { // if not admin and no anonymous registration
+				ctx.AbortWithError(http.StatusForbidden, errors.New("you are not allowed to access this api"))
+				return
+			}
+			if internal.Admin { // not admin and wants to create a new user with admin
+				ctx.AbortWithError(http.StatusUnauthorized, errors.New("you are not permitted to register an admin user"))
+				return
+			}
+		}
+
 		if existingUser == nil {
 			if success := successOrAbort(ctx, 500, a.DB.CreateUser(internal)); !success {
 				return
@@ -178,62 +203,6 @@ func (a *UserAPI) CreateUser(ctx *gin.Context) {
 			ctx.JSON(200, toExternalUser(internal))
 		} else {
 			ctx.AbortWithError(400, errors.New("username already exists"))
-		}
-	}
-}
-
-// Register creates a user who can't be admin
-// swagger:operation POST /registration user register
-//
-// Create a user.
-//
-// ---
-// consumes: [application/json]
-// produces: [application/json]
-// security: [clientTokenHeader: [], clientTokenQuery: [], basicAuth: []]
-// parameters:
-// - name: body
-//   in: body
-//   description: the user to add
-//   required: true
-//   schema:
-//     $ref: "#/definitions/UserWithPass"
-// responses:
-//   200:
-//     description: Ok
-//     schema:
-//         $ref: "#/definitions/User"
-//   400:
-//     description: Bad Request
-//     schema:
-//         $ref: "#/definitions/Error"
-//   401:
-//     description: Unauthorized
-//     schema:
-//         $ref: "#/definitions/Error"
-//   403:
-//     description: Forbidden
-//     schema:
-//         $ref: "#/definitions/Error"
-func (a *UserAPI) Register(ctx *gin.Context) {
-	user := model.UserExternalWithPass{}
-	if err := ctx.Bind(&user); err == nil {
-		internal := a.toInternalUser(&user, []byte{})
-		existingUser, err := a.DB.GetUserByName(internal.Name)
-		if success := successOrAbort(ctx, 500, err); !success {
-			return
-		}
-		if existingUser == nil && !internal.Admin {
-			if success := successOrAbort(ctx, 500, a.DB.CreateUser(internal)); !success {
-				return
-			}
-			if err := a.UserChangeNotifier.fireUserAdded(internal.ID); err != nil {
-				ctx.AbortWithError(500, err)
-				return
-			}
-			ctx.JSON(200, toExternalUser(internal))
-		} else {
-			ctx.AbortWithError(400, errors.New("cannot register"))
 		}
 	}
 }

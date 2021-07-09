@@ -75,6 +75,7 @@ class Layout extends React.Component<
     }
 
     public componentDidMount() {
+        this.registration = true; //TODO https://github.com/gotify/server/pull/394#discussion_r650559205
         if (this.version === Layout.defaultVersion) {
             axios.get(config.get('url') + 'version').then((resp: AxiosResponse<IVersion>) => {
                 this.version = resp.data.version;

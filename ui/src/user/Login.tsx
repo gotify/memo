@@ -8,8 +8,6 @@ import {observable} from 'mobx';
 import {observer} from 'mobx-react';
 import {inject, Stores} from '../inject';
 import RegistrationDialog from './Register';
-import * as config from '../config';
-import axios from 'axios';
 
 type Props = Stores<'currentUser'> & {
     showRegister: boolean;
@@ -64,7 +62,7 @@ class Login extends Component<Props> {
                 {registerDialog && (
                     <RegistrationDialog
                         fClose={() => (this.registerDialog = false)}
-                        fOnSubmit={this.register}
+                        fOnSubmit={this.props.currentUser.register}
                     />
                 )}
             </DefaultPage>
@@ -74,10 +72,6 @@ class Login extends Component<Props> {
     private login = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         this.props.currentUser.login(this.username, this.password);
-    };
-
-    private register = async (name: string, pass: string) => {
-        await axios.post(config.get('url') + 'registration', {name, pass});
     };
 
     private registerButton = () => {

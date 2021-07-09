@@ -42,6 +42,17 @@ export class CurrentUser {
         window.localStorage.setItem(tokenKey, token);
     };
 
+    public register = async (name: string, pass: string) => {
+        const f = false;
+        axios
+            .post(config.get('url') + 'user', {name, pass, f})
+            .then(() => {
+                this.snack('User Created. Logging in...');
+                this.login(name, pass);
+            })
+            .catch(() => true); //errors are already handled by axios snack bar so need this to avoid crash
+    };
+
     public login = async (username: string, password: string) => {
         this.loggedIn = false;
         this.authenticating = true;

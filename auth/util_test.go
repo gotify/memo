@@ -29,6 +29,7 @@ func (s *UtilSuite) Test_getID() {
 	assert.Panics(s.T(), func() {
 		s.expectUserIDWith(nil, 0, 0)
 	})
+	s.expectTryUserIDWith(nil, 0, nil)
 }
 
 func (s *UtilSuite) Test_getToken() {
@@ -42,5 +43,12 @@ func (s *UtilSuite) expectUserIDWith(user *model.User, tokenUserID, expectedID u
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	RegisterAuthentication(ctx, user, tokenUserID, "")
 	actualID := GetUserID(ctx)
+	assert.Equal(s.T(), expectedID, actualID)
+}
+
+func (s *UtilSuite) expectTryUserIDWith(user *model.User, tokenUserID uint, expectedID *uint) {
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	RegisterAuthentication(ctx, user, tokenUserID, "")
+	actualID := TryGetUserID(ctx)
 	assert.Equal(s.T(), expectedID, actualID)
 }

@@ -39,7 +39,7 @@ func Create(db *database.GormDatabase, vInfo *model.VersionInfo, conf *config.Co
 		ImageDir: conf.UploadedImagesDir,
 	}
 	userChangeNotifier := new(api.UserChangeNotifier)
-	userHandler := api.UserAPI{DB: db, PasswordStrength: conf.PassStrength, UserChangeNotifier: userChangeNotifier}
+	userHandler := api.UserAPI{DB: db, PasswordStrength: conf.PassStrength, UserChangeNotifier: userChangeNotifier, EnableRegistration: conf.Registration}
 
 	pluginManager, err := plugin.NewManager(db, conf.PluginsDir, g.Group("/plugin/:id/custom/"), streamHandler)
 	if err != nil {
@@ -61,9 +61,7 @@ func Create(db *database.GormDatabase, vInfo *model.VersionInfo, conf *config.Co
 	g.GET("/swagger", docs.Serve)
 	g.Static("/image", conf.UploadedImagesDir)
 	g.GET("/docs", docs.UI)
-	if conf.Registration {
-		g.POST("/registration", userHandler.Register)
-	}
+
 	g.Use(func(ctx *gin.Context) {
 		ctx.Header("Content-Type", "application/json")
 		for header, value := range conf.Server.ResponseHeaders {
@@ -83,6 +81,8 @@ func Create(db *database.GormDatabase, vInfo *model.VersionInfo, conf *config.Co
 			pluginRoute.POST("/:id/disable", pluginHandler.DisablePlugin)
 		}
 	}
+
+	g.Group("/user").Use(authentication.Optional()).POST("", userHandler.CreateUser)
 
 	g.OPTIONS("/*any")
 
@@ -158,8 +158,6 @@ func Create(db *database.GormDatabase, vInfo *model.VersionInfo, conf *config.Co
 		authAdmin.Use(authentication.RequireAdmin())
 
 		authAdmin.GET("", userHandler.GetUsers)
-
-		authAdmin.POST("", userHandler.CreateUser)
 
 		authAdmin.DELETE("/:id", userHandler.DeleteUserByID)
 

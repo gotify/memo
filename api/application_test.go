@@ -535,6 +535,6 @@ func fakeImage(t *testing.T, path string) {
 	data, err := ioutil.ReadFile("../test/assets/image.png")
 	assert.Nil(t, err)
 	// Write data to dst
-	err = ioutil.WriteFile(path, data, 0644)
+	err = ioutil.WriteFile(path, data, 0o644)
 	assert.Nil(t, err)
 }
